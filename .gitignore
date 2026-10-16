@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+*.dxvk-cache
+*.obarchive
+.DS_Store
+# build outputs of tools/ (the bundled wrapper in src/openbottle/data is tracked)
+tools/**/*.exe
