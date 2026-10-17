@@ -80,6 +80,10 @@ pequeno, escrito do zero, em cima de projetos públicos de código aberto (Wine,
 **Quais jogos funcionam?** Muitos jogos DirectX 9/10/11 que rodam no Wine. Jogos DirectX 12 e jogos
 com anti-cheat de kernel (Valorant e vários jogos online competitivos) não funcionam.
 
+**Instalar jogos da Steam num HD externo.** Rode `crossbottle drive Steam E: /Volumes/SeuDisco`,
+reinicie a Steam e vá em Configurações → Armazenamento → Adicionar unidade → `E:`. O comando também
+marca a unidade como disco fixo no Wine; sem isso a Steam diz que a biblioteca "não está montada".
+
 **A Steam atualizou e a tela ficou preta.** Abra a Steam pelo app do CrossBottle, que reaplica a
 correção sozinho, ou rode `crossbottle cefwrap Steam`.
 

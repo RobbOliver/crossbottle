@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from . import archive, cefwrap, graphics, launcher, recipes, shortcut
+from . import archive, cefwrap, drives, graphics, launcher, recipes, shortcut
 from .bottle import BottleError, Store, WINDOWS_VERSIONS
 
 
@@ -87,6 +87,12 @@ def build_parser() -> argparse.ArgumentParser:
     st.add_argument("--wine", help="Wine binary (default: the one from install.sh)")
     st.add_argument("--no-app", action="store_true", help="do not create ~/Applications/CrossBottle/Steam.app")
     st.add_argument("--open", action="store_true", help="open Steam when done")
+
+    dr = sub.add_parser("drive", help="map a drive letter to a Mac folder or external disk")
+    dr.add_argument("name")
+    dr.add_argument("letter", nargs="?", help="D: to Y:")
+    dr.add_argument("path", nargs="?", help="Mac folder, e.g. /Volumes/MyDisk")
+    dr.add_argument("--remove", action="store_true")
 
     r = sub.add_parser("run", help="run a Windows program in a bottle")
     r.add_argument("name")
@@ -178,6 +184,19 @@ def _dispatch(args, store: Store) -> int:
         if args.open and app:
             import subprocess
             subprocess.run(["open", str(app)])
+    elif args.cmd == "drive":
+        bottle = store.get(args.name)
+        if args.letter and args.remove:
+            print(drives.remove(bottle, args.letter))
+        elif args.letter and args.path:
+            def set_registry(key, value):
+                launcher.run(bottle, "reg", ["add", r"HKLM\Software\Wine\Drives", "/v", key, "/d", value, "/f"])
+            print(drives.add(bottle, args.letter, Path(args.path), set_registry))
+            print("Restart the bottle's programs (e.g. Steam) to use the new drive.")
+        elif args.letter:
+            raise BottleError("give a folder to map, or --remove")
+        for letter, target in drives.list_drives(bottle).items():
+            print("%s %s" % (letter, target))
     elif args.cmd == "run":
         bottle = store.get(args.name)
         if bottle.meta.cefwrap and not args.dry_run and cefwrap.find_helpers(bottle):

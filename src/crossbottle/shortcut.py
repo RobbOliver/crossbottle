@@ -185,6 +185,12 @@ def create(store: Store, bottle: Bottle, program: str, name: str,
             'exec >>"$HOME/Library/Logs/CrossBottle/%s.log" 2>&1' % _slug(name),
             'echo "--- $(date) launching %s"' % _slug(name),
             'export PYTHONPATH="$here/../Resources/python"',
+            # Touch external drives mapped into the bottle while this app is in the
+            # foreground, so macOS asks once for "Removable Volumes" access. Otherwise
+            # Wine's background services are silently denied and the drive looks empty.
+            'for d in %s/dosdevices/*:; do' % shlex.quote(str(bottle.prefix)),
+            '  t="$(readlink "$d")"; case "$t" in /Volumes/*) ls "$t" >/dev/null 2>&1 ;; esac',
+            'done',
         ] + _vulkan_exports(inner, name) + [
             "exec %s -m crossbottle --root %s run --exec --wine \"$here/../Resources/%s/Contents/MacOS/wine\" %s %s \"$@\"" % (
                 shlex.quote(sys.executable), shlex.quote(str(store.root)), name + ".app",

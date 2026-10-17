@@ -54,6 +54,7 @@ open ~/Applications/CrossBottle/MyApp.app
 | `crossbottle run NAME PROGRAM [ARGS...]` | Run a `.exe`, `.msi` or `.bat` (`--dry-run` prints the command) |
 | `crossbottle shortcut NAME PROGRAM --app-name "Name"` | Mac app with its own Dock name and icon (`--replace` to rebuild) |
 | `crossbottle graphics NAME [dxvk\|wined3d]` | Direct3D 10/11 backend |
+| `crossbottle drive NAME E: /Volumes/Disk` | Map a drive letter to a Mac folder or external disk (`--remove`) |
 | `crossbottle config NAME --wine PATH --env K=V --dll-overrides S` | Per-bottle settings |
 | `crossbottle args NAME PROGRAM [FLAGS...]` | Default flags for a program |
 | `crossbottle cefwrap NAME [--status\|--remove]` | Steam web helper fix |
@@ -99,6 +100,10 @@ on public open-source projects (Wine, DXVK, MoltenVK), written from scratch.
 kernel anti-cheat (Valorant, many online shooters), do not work. Results vary by game.
 
 **Intel Mac?** Not tested. The Wine build supports x86_64; DXVK on Intel GPUs may be limited.
+
+**Install Steam games on an external disk.** `crossbottle drive Steam E: /Volumes/YourDisk`, restart
+Steam, then Steam → Settings → Storage → Add Drive → `E:`. The command also marks the drive as a fixed
+disk in Wine; without that, Steam reports the library as "not mounted" and Add Drive does nothing.
 
 **Steam updated and the window is black again.** Open Steam through its CrossBottle app (it re-applies
 the fix automatically) or run `crossbottle cefwrap Steam`.

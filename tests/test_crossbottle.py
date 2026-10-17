@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from crossbottle import archive, cefwrap, graphics, icons, launcher, shortcut  # noqa: E402
+from crossbottle import archive, cefwrap, drives, graphics, icons, launcher, shortcut  # noqa: E402
 from crossbottle.bottle import BottleError, Store  # noqa: E402
 from crossbottle.cli import main  # noqa: E402
 
@@ -318,6 +318,7 @@ class ShortcutTests(Base):
         script = (app / "Contents" / "MacOS" / shortcut.LAUNCHER).read_text()
         self.assertIn("VK_ICD_FILENAMES", script)
         self.assertIn("run --exec", script)
+        self.assertIn("/dosdevices/*:", script)
         self.assertTrue((app / "Contents" / "Resources" / "python" / "crossbottle" / "cli.py").is_file())
 
     def test_refuses_foreign_app(self):
@@ -370,6 +371,28 @@ class LegacyPathTests(Base):
         b.meta.graphics = "dxvk"
         graphics.apply(b, "wined3d")
         self.assertEqual((win / "d3d11.dll").read_bytes(), b"wine")
+
+
+class DriveTests(Base):
+    def test_add_list_remove(self):
+        b = self.store.create("d")
+        (b.prefix / "dosdevices").mkdir(parents=True)
+        os.symlink("../drive_c", b.prefix / "dosdevices" / "c:")
+        disk = self.tmp / "disk"
+        disk.mkdir()
+        calls = []
+        drives.add(b, "E:", disk, lambda k, v: calls.append((k, v)))
+        self.assertEqual(calls, [("e:", "hd")])
+        self.assertEqual(drives.list_drives(b)["E:"], str(disk))
+        with self.assertRaises(BottleError):
+            drives.add(b, "e", disk)
+        for bad in ("C:", "Z:", "1:", "EE"):
+            with self.assertRaises(BottleError):
+                drives.add(b, bad, disk)
+        with self.assertRaises(BottleError):
+            drives.add(b, "F:", self.tmp / "missing")
+        drives.remove(b, "E:")
+        self.assertNotIn("E:", drives.list_drives(b))
 
 
 class CliTests(Base):
