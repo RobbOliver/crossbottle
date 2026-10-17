@@ -84,6 +84,11 @@ com anti-cheat de kernel (Valorant e vários jogos online competitivos) não fun
 reinicie a Steam e vá em Configurações → Armazenamento → Adicionar unidade → `E:`. O comando também
 marca a unidade como disco fixo no Wine; sem isso a Steam diz que a biblioteca "não está montada".
 
+**A interface da Steam está lenta.** Ela é desenhada pelo processador (a GPU não funciona no navegador
+da Steam neste Wine) e roda pelo Rosetta. Na Steam, ative Configurações → Biblioteca → *Modo de baixo
+desempenho*, desative Configurações → Interface → *Rolagem suave*, ou use Exibir → *Modo compacto*. Em Macs
+com 8 GB, feche outros apps pesados. Os jogos não são afetados: eles usam a GPU.
+
 **A Steam atualizou e a tela ficou preta.** Abra a Steam pelo app do CrossBottle, que reaplica a
 correção sozinho, ou rode `crossbottle cefwrap Steam`.
 

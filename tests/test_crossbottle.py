@@ -185,12 +185,12 @@ class CefwrapTests(Base):
         self.helper = self.cef / "steamwebhelper.exe"
         self.helper.write_bytes(b"valve-v1")
         self.wrapper = self.tmp / "wrap.exe"
-        self.wrapper.write_bytes(b"wrapper")
+        self.wrapper.write_bytes(b"wrapper CROSSBOTTLE_CEFWRAP_V2")
 
     def test_apply_status_remove(self):
         self.assertEqual(cefwrap.status(self.helper, self.wrapper), "original")
         cefwrap.apply(self.bottle, self.wrapper)
-        self.assertEqual(self.helper.read_bytes(), b"wrapper")
+        self.assertEqual(self.helper.read_bytes(), b"wrapper CROSSBOTTLE_CEFWRAP_V2")
         self.assertEqual((self.cef / "steamwebhelper_real.exe").read_bytes(), b"valve-v1")
         self.assertEqual(cefwrap.apply(self.bottle, self.wrapper)[0][1], "already wrapped")
         cefwrap.remove(self.bottle, self.wrapper)
@@ -203,6 +203,38 @@ class CefwrapTests(Base):
         self.assertEqual(cefwrap.status(self.helper, self.wrapper), "replaced")
         self.assertEqual(cefwrap.apply(self.bottle, self.wrapper)[0][1], "re-wrapped after update")
         self.assertEqual((self.cef / "steamwebhelper_real.exe").read_bytes(), b"valve-v2")
+
+    def test_outdated_wrapper_is_updated_not_treated_as_valve(self):
+        cefwrap.apply(self.bottle, self.wrapper)
+        self.helper.write_bytes(b"older CROSSBOTTLE_CEFWRAP_V1 build")
+        self.assertEqual(cefwrap.status(self.helper, self.wrapper), "outdated")
+        self.assertEqual(cefwrap.apply(self.bottle, self.wrapper)[0][1], "wrapper updated")
+        self.assertEqual((self.cef / "steamwebhelper_real.exe").read_bytes(), b"valve-v1")
+        self.assertEqual(self.helper.read_bytes(), self.wrapper.read_bytes())
+
+    def test_legacy_wrapper_without_marker_is_recognised(self):
+        legacy = self.tmp / "legacy.exe"
+        legacy.write_bytes(b"legacy")
+        import hashlib
+        cefwrap.LEGACY_WRAPPERS.add(hashlib.sha256(b"legacy").hexdigest())
+        self.assertTrue(cefwrap.is_wrapper(legacy))
+        self.assertFalse(cefwrap.is_wrapper(self.helper))
+
+    def test_repairs_swapped_wrapper_and_never_moves_wrapper_to_real(self):
+        cefwrap.apply(self.bottle, self.wrapper)
+        real = self.cef / "steamwebhelper_real.exe"
+        # an older crossbottle moved our wrapper into _real; Steam restored its helper
+        real.write_bytes(self.wrapper.read_bytes())
+        self.helper.write_bytes(b"valve-v3")
+        self.assertEqual(cefwrap.status(self.helper, self.wrapper), "broken")
+        cefwrap.apply(self.bottle, self.wrapper)
+        self.assertEqual(real.read_bytes(), b"valve-v3")
+        self.assertEqual(self.helper.read_bytes(), self.wrapper.read_bytes())
+        # both files are wrappers: Valve's helper is gone, refuse instead of guessing
+        self.helper.write_bytes(self.wrapper.read_bytes())
+        real.write_bytes(self.wrapper.read_bytes())
+        with self.assertRaises(BottleError):
+            cefwrap.apply(self.bottle, self.wrapper)
 
     def test_no_steam(self):
         b = self.store.create("empty")
@@ -319,6 +351,7 @@ class ShortcutTests(Base):
         self.assertIn("VK_ICD_FILENAMES", script)
         self.assertIn("run --exec", script)
         self.assertIn("/dosdevices/*:", script)
+        self.assertIn("import crossbottle' 2>/dev/null || export PYTHONPATH", script)
         self.assertTrue((app / "Contents" / "Resources" / "python" / "crossbottle" / "cli.py").is_file())
 
     def test_refuses_foreign_app(self):

@@ -6,6 +6,10 @@
  * waits and propagates its exit code. Child processes (--type=...) are
  * passed through unchanged.
  *
+ * The switches default to software rendering (works everywhere). Set the
+ * environment variable CROSSBOTTLE_CEF_FLAGS to replace them, e.g. with
+ * "--no-sandbox" to keep GPU rendering when DXVK is available.
+ *
  * Build: x86_64-w64-mingw32-gcc -municode -O2 -s -o steamwebhelper.exe cefwrap.c
  */
 #include <windows.h>
@@ -13,6 +17,9 @@
 
 static const wchar_t EXTRA_FLAGS[] =
     L" --disable-gpu --disable-gpu-compositing --single-process --no-sandbox";
+
+/* Lets crossbottle recognise any version of this wrapper. Do not remove. */
+volatile const char CROSSBOTTLE_MARKER[] = "CROSSBOTTLE_CEFWRAP_V2";
 
 /* Return pointer to the arguments after argv[0] in a raw command line. */
 static const wchar_t *skip_argv0(const wchar_t *cmd)
@@ -41,7 +48,14 @@ int wmain(void)
 
     const wchar_t *args = skip_argv0(GetCommandLineW());
     int is_child = wcsstr(args, L"--type=") != NULL;
-    const wchar_t *extra = is_child ? L"" : EXTRA_FLAGS;
+    static wchar_t custom[4096];
+    const wchar_t *extra = EXTRA_FLAGS;
+    DWORD clen = GetEnvironmentVariableW(L"CROSSBOTTLE_CEF_FLAGS", custom + 1, 4094);
+    if (clen > 0 && clen < 4094) {
+        custom[0] = L' ';
+        extra = custom;
+    }
+    if (is_child) extra = L"";
 
     size_t len = wcslen(real) + wcslen(extra) + wcslen(args) + 8;
     wchar_t *cmd = HeapAlloc(GetProcessHeap(), 0, len * sizeof(wchar_t));

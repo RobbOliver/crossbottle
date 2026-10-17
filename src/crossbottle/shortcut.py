@@ -12,7 +12,7 @@ every child process then run as that inner app:
       Contents/Info.plist                    CFBundleExecutable = crossbottle-launch
       Contents/MacOS/crossbottle-launch       runs `crossbottle run --exec --wine <inner>/wine`
       Contents/Resources/app.icns            icon extracted from the .exe
-      Contents/Resources/python/crossbottle  copy of this package (Finder apps cannot read ~/Documents)
+      Contents/Resources/python/crossbottle  fallback copy, used only if crossbottle is not installed
       Contents/crossbottle.json              marker: bottle, program, wine root
       Contents/Resources/<Name>.app/         inner bundle shown in the Dock
         Contents/Info.plist                  CFBundleName = <Name>, CFBundleExecutable = wine
@@ -184,7 +184,9 @@ def create(store: Store, bottle: Bottle, program: str, name: str,
             'mkdir -p "$HOME/Library/Logs/CrossBottle"',
             'exec >>"$HOME/Library/Logs/CrossBottle/%s.log" 2>&1' % _slug(name),
             'echo "--- $(date) launching %s"' % _slug(name),
-            'export PYTHONPATH="$here/../Resources/python"',
+            # Prefer the installed crossbottle (kept current by install.sh); the copy
+            # shipped in the app is only a fallback, so old apps never run old code.
+            "%s -c 'import crossbottle' 2>/dev/null || export PYTHONPATH=\"$here/../Resources/python\"" % shlex.quote(sys.executable),
             # Touch external drives mapped into the bottle while this app is in the
             # foreground, so macOS asks once for "Removable Volumes" access. Otherwise
             # Wine's background services are silently denied and the drive looks empty.

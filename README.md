@@ -75,7 +75,10 @@ Whisky) is too old for the current Steam client, which crashes after its self-up
 Steam's own `-cef-disable-gpu` flags don't help. `crossbottle cefwrap` replaces `steamwebhelper.exe`
 with a tiny wrapper ([tools/cefwrap/cefwrap.c](tools/cefwrap/cefwrap.c)) that starts the real helper
 with `--disable-gpu --disable-gpu-compositing --single-process`. If a Steam update restores Valve's
-file, `crossbottle run` re-applies the wrapper. Idea credit:
+file, `crossbottle run` re-applies the wrapper. The switches can be changed per bottle with
+`crossbottle config Steam --env CROSSBOTTLE_CEF_FLAGS="..."`. GPU rendering (`--no-sandbox` only) was
+tested on Wine 11.18 with DXVK and does not work: ANGLE fails with `SwapChain11 ... EGL_BAD_ALLOC` and
+the web helper crashes, so software rendering stays the default. Idea credit:
 [steam-on-m1-wine](https://github.com/notpop/steam-on-m1-wine).
 
 **Direct3D.** Wine's built-in D3D reports a fake "GeForce 6800" at feature level 9_3 on macOS.
@@ -104,6 +107,10 @@ kernel anti-cheat (Valorant, many online shooters), do not work. Results vary by
 **Install Steam games on an external disk.** `crossbottle drive Steam E: /Volumes/YourDisk`, restart
 Steam, then Steam → Settings → Storage → Add Drive → `E:`. The command also marks the drive as a fixed
 disk in Wine; without that, Steam reports the library as "not mounted" and Add Drive does nothing.
+
+**Steam's interface is slow.** It is drawn by the CPU (see above) and runs through Rosetta. In Steam,
+turn on Settings → Library → *Low Performance Mode*, turn off Settings → Interface → *Smooth scrolling*,
+or use View → *Small Mode*. Close other heavy apps on 8 GB Macs. Games are not affected: they use the GPU.
 
 **Steam updated and the window is black again.** Open Steam through its CrossBottle app (it re-applies
 the fix automatically) or run `crossbottle cefwrap Steam`.
