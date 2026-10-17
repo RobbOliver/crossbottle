@@ -10,13 +10,14 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from . import paths
 from .bottle import Bottle, BottleError
 
 BACKENDS = ("wined3d", "dxvk")
 DXVK_DLLS = ("d3d11", "d3d10core", "dxgi")
-DEFAULT_RUNTIMES = Path.home() / "Library" / "Application Support" / "OpenBottle" / "Runtimes"
 DEFAULT_DXVK = "dxvk-macos-1.10.3"
-BACKUP_DIR = "openbottle-backup"
+BACKUP_DIR = "crossbottle-backup"
+LEGACY_BACKUP_DIR = "openbottle-backup"
 # runtime subdirectory -> prefix directory
 ARCH_DIRS = (("x64", "system32"), ("x32", "syswow64"))
 
@@ -38,12 +39,17 @@ def format_overrides(table: Dict[str, str]) -> str:
 
 
 def default_runtime() -> Path:
-    env = os.environ.get("OPENBOTTLE_DXVK")
-    return Path(env) if env else DEFAULT_RUNTIMES / DEFAULT_DXVK
+    env = paths.env("DXVK")
+    return Path(env) if env else paths.data_dir() / "Runtimes" / DEFAULT_DXVK
 
 
 def _windows_dir(bottle: Bottle) -> Path:
     return bottle.prefix / "drive_c" / "windows"
+
+
+def _backup_dir(bottle: Bottle) -> Path:
+    legacy = bottle.path / LEGACY_BACKUP_DIR / "graphics"
+    return legacy if legacy.is_dir() else bottle.path / BACKUP_DIR / "graphics"
 
 
 def current(bottle: Bottle) -> str:
@@ -56,7 +62,7 @@ def apply(bottle: Bottle, backend: str, runtime: Optional[Path] = None) -> List[
     windows = _windows_dir(bottle)
     if not (windows / "system32").is_dir():
         raise BottleError("bottle %s has no Wine prefix yet; run something in it first" % bottle.name)
-    backup = bottle.path / BACKUP_DIR / "graphics"
+    backup = _backup_dir(bottle)
     overrides = parse_overrides(bottle.meta.dll_overrides)
     log: List[str] = []
 

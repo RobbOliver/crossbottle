@@ -1,4 +1,4 @@
-"""openbottle command line."""
+"""crossbottle command line."""
 from __future__ import annotations
 
 import argparse
@@ -6,13 +6,13 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from . import archive, cefwrap, graphics, launcher, shortcut
+from . import archive, cefwrap, graphics, launcher, recipes, shortcut
 from .bottle import BottleError, Store, WINDOWS_VERSIONS
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="openbottle", description="Manage Wine bottles and run Windows programs.")
-    p.add_argument("--root", help="bottle directory (default: $OPENBOTTLE_ROOT or app support)")
+    p = argparse.ArgumentParser(prog="crossbottle", description="Manage Wine bottles and run Windows programs.")
+    p.add_argument("--root", help="bottle directory (default: $CROSSBOTTLE_ROOT or ~/Library/Application Support/CrossBottle/Bottles)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("create", help="create a bottle")
@@ -39,11 +39,11 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--new", action="store_true")
     u.add_argument("--set")
 
-    e = sub.add_parser("export", help="export a bottle to .obarchive")
+    e = sub.add_parser("export", help="export a bottle to .cbarchive")
     e.add_argument("name")
     e.add_argument("dest")
 
-    im = sub.add_parser("import", help="import a .obarchive")
+    im = sub.add_parser("import", help="import a .cbarchive")
     im.add_argument("archive")
     im.add_argument("--name", default="")
 
@@ -77,9 +77,16 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("name")
     sc.add_argument("program", help="program to run, e.g. 'C:\\Program Files\\App\\App.exe'")
     sc.add_argument("--app-name", required=True, help="name shown in the Dock and Finder")
-    sc.add_argument("--dest", help="folder for the .app (default: ~/Applications/OpenBottle)")
+    sc.add_argument("--dest", help="folder for the .app (default: ~/Applications/CrossBottle)")
     sc.add_argument("--wine", help="Wine to embed (default: the bottle's)")
-    sc.add_argument("--replace", action="store_true", help="rebuild an existing openbottle .app")
+    sc.add_argument("--replace", action="store_true", help="rebuild an existing CrossBottle .app")
+
+    st = sub.add_parser("install-steam", help="one command: bottle + Steam + fixes + Dock app")
+    st.add_argument("--name", default="Steam", help="bottle name (default: Steam)")
+    st.add_argument("--installer", help="use this SteamSetup.exe instead of downloading it")
+    st.add_argument("--wine", help="Wine binary (default: the one from install.sh)")
+    st.add_argument("--no-app", action="store_true", help="do not create ~/Applications/CrossBottle/Steam.app")
+    st.add_argument("--open", action="store_true", help="open Steam when done")
 
     r = sub.add_parser("run", help="run a Windows program in a bottle")
     r.add_argument("name")
@@ -164,9 +171,16 @@ def _dispatch(args, store: Store) -> int:
         app = shortcut.create(store, bottle, args.program, args.app_name,
                               Path(args.dest).expanduser() if args.dest else None, args.wine, args.replace)
         print(app)
+    elif args.cmd == "install-steam":
+        app = recipes.install_steam(store, args.name, Path(args.installer) if args.installer else None,
+                                    args.wine, not args.no_app)
+        print("Done. Open Steam from %s" % (app or "`crossbottle run %s '%s'`" % (args.name, recipes.STEAM_EXE)))
+        if args.open and app:
+            import subprocess
+            subprocess.run(["open", str(app)])
     elif args.cmd == "run":
         bottle = store.get(args.name)
-        if bottle.meta.cefwrap and not args.dry_run:
+        if bottle.meta.cefwrap and not args.dry_run and cefwrap.find_helpers(bottle):
             for helper, what in cefwrap.apply(bottle):
                 if what != "already wrapped":
                     print("cefwrap: %s: %s" % (helper, what), file=sys.stderr)

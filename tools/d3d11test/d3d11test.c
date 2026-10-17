@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     wc.lpszClassName = L"d3d11test";
     wc.hCursor = LoadCursorW(NULL, (LPCWSTR)IDC_ARROW);
     RegisterClassW(&wc);
-    HWND hwnd = CreateWindowW(L"d3d11test", L"openbottle D3D11 test", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+    HWND hwnd = CreateWindowW(L"d3d11test", L"CrossBottle D3D11 test", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                               100, 100, 640, 400, NULL, NULL, wc.hInstance, NULL);
     if (!hwnd) { printf("FAIL: CreateWindow\n"); return 1; }
 

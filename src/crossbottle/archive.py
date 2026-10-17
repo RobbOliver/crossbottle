@@ -1,4 +1,4 @@
-"""Bottle export/import as a gzip-compressed tar (.obarchive)."""
+"""Bottle export/import as a gzip-compressed tar (.cbarchive; legacy .obarchive files import too)."""
 from __future__ import annotations
 
 import tarfile
@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 
 from .bottle import BottleError, META_NAME, Store
 
-EXTENSION = ".obarchive"
+EXTENSION = ".cbarchive"
 
 
 def export_bottle(store: Store, name: str, dest: Path) -> Path:

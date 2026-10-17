@@ -9,9 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from openbottle import archive, cefwrap, graphics, icons, launcher, shortcut  # noqa: E402
-from openbottle.bottle import BottleError, Store  # noqa: E402
-from openbottle.cli import main  # noqa: E402
+from crossbottle import archive, cefwrap, graphics, icons, launcher, shortcut  # noqa: E402
+from crossbottle.bottle import BottleError, Store  # noqa: E402
+from crossbottle.cli import main  # noqa: E402
 
 
 class Base(unittest.TestCase):
@@ -61,14 +61,14 @@ class ArchiveTests(Base):
         (b.prefix / "drive_c").mkdir()
         (b.prefix / "drive_c" / "x.txt").write_text("data")
         out = archive.export_bottle(self.store, "a", self.tmp / "backup")
-        self.assertEqual(out.suffix, ".obarchive")
+        self.assertEqual(out.suffix, ".cbarchive")
         name = archive.import_bottle(self.store, out, "restored")
         r = self.store.get(name)
         self.assertEqual((r.prefix / "drive_c" / "x.txt").read_text(), "data")
         self.assertNotEqual(r.meta.uuid, b.meta.uuid)
 
     def _evil(self, member_name):
-        path = self.tmp / "evil.obarchive"
+        path = self.tmp / "evil.cbarchive"
         with tarfile.open(path, "w:gz") as tar:
             info = tarfile.TarInfo(member_name)
             data = b"x"
@@ -90,7 +90,7 @@ class ArchiveTests(Base):
         archive.import_bottle(self.store, out, "b")
         self.assertTrue((self.store.get("b").prefix / "dosdevices" / "c:").is_symlink())
 
-        path = self.tmp / "evil2.obarchive"
+        path = self.tmp / "evil2.cbarchive"
         with tarfile.open(path, "w:gz") as tar:
             meta = tarfile.TarInfo("top/bottle.json"); meta.size = 2
             tar.addfile(meta, io.BytesIO(b"{}"))
@@ -115,7 +115,7 @@ class LauncherTests(Base):
         self.assertEqual(env["WINEPREFIX"], str(b.prefix))
         self.assertEqual(env["WINEDLLOVERRIDES"], "d3d11=n")
         self.assertEqual(env["FOO"], "bar")
-        self.assertEqual(env["OPENBOTTLE_UUID"], b.meta.uuid)
+        self.assertEqual(env["CROSSBOTTLE_UUID"], b.meta.uuid)
 
     def test_command_variants(self):
         self.assertEqual(launcher.build_command("w", "a.exe", ["-x"], None), ["w", "a.exe", "-x"])
@@ -138,6 +138,7 @@ class LauncherTests(Base):
 
     def test_missing_wine(self):
         os.environ.pop("OPENBOTTLE_WINE", None)
+        os.environ.pop("CROSSBOTTLE_WINE", None)
         with self.assertRaises(BottleError):
             launcher.find_wine("definitely-not-a-wine-binary")
 
@@ -316,7 +317,7 @@ class ShortcutTests(Base):
         script = (app / "Contents" / "MacOS" / shortcut.LAUNCHER).read_text()
         self.assertIn("VK_ICD_FILENAMES", script)
         self.assertIn("run --exec", script)
-        self.assertTrue((app / "Contents" / "Resources" / "python" / "openbottle" / "cli.py").is_file())
+        self.assertTrue((app / "Contents" / "Resources" / "python" / "crossbottle" / "cli.py").is_file())
 
     def test_refuses_foreign_app(self):
         root = self._fake_wine_root()
@@ -332,6 +333,42 @@ class ShortcutTests(Base):
             notpe = self.tmp / "x.exe"
             notpe.write_bytes(b"hello")
             icons.extract_ico(notpe)
+
+
+class LegacyPathTests(Base):
+    def test_legacy_folders_and_env(self):
+        from crossbottle import paths
+        old_home = paths.HOME
+        paths.HOME = self.tmp
+        try:
+            support = self.tmp / "Library" / "Application Support"
+            self.assertEqual(paths.data_dir(), support / "CrossBottle")
+            (support / "OpenBottle").mkdir(parents=True)
+            self.assertEqual(paths.data_dir(), support / "OpenBottle")
+            (support / "CrossBottle").mkdir()
+            self.assertEqual(paths.data_dir(), support / "CrossBottle")
+        finally:
+            paths.HOME = old_home
+        os.environ["OPENBOTTLE_DXVK"] = "/legacy"
+        try:
+            self.assertEqual(paths.env("DXVK"), "/legacy")
+            os.environ["CROSSBOTTLE_DXVK"] = "/new"
+            self.assertEqual(paths.env("DXVK"), "/new")
+        finally:
+            os.environ.pop("OPENBOTTLE_DXVK", None)
+            os.environ.pop("CROSSBOTTLE_DXVK", None)
+
+    def test_legacy_graphics_backup_is_restored(self):
+        b = self.store.create("g")
+        win = b.prefix / "drive_c" / "windows" / "system32"
+        win.mkdir(parents=True)
+        (win / "d3d11.dll").write_bytes(b"dxvk")
+        legacy = b.path / "openbottle-backup" / "graphics" / "system32"
+        legacy.mkdir(parents=True)
+        (legacy / "d3d11.dll").write_bytes(b"wine")
+        b.meta.graphics = "dxvk"
+        graphics.apply(b, "wined3d")
+        self.assertEqual((win / "d3d11.dll").read_bytes(), b"wine")
 
 
 class CliTests(Base):

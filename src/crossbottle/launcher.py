@@ -8,11 +8,12 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from . import paths
 from .bottle import Bottle, BottleError
 
 
 def find_wine(explicit: Optional[str] = None, bottle: Optional[Bottle] = None) -> str:
-    """Resolve Wine: explicit argument, then the bottle's setting, then env/PATH."""
+    """Resolve Wine: explicit argument, the bottle's setting, env, install.sh's copy, then PATH."""
     if not explicit and bottle is not None and bottle.meta.wine:
         explicit = bottle.meta.wine
     if explicit:
@@ -20,13 +21,25 @@ def find_wine(explicit: Optional[str] = None, bottle: Optional[Bottle] = None) -
         if not found:
             raise BottleError("Wine not found at %s" % explicit)
         return found
-    for c in (os.environ.get("OPENBOTTLE_WINE"), "wine64", "wine"):
-        if not c:
-            continue
+    env_wine = paths.env("WINE")
+    if env_wine and shutil.which(env_wine):
+        return shutil.which(env_wine)
+    # Prefer CrossBottle's own Wine over whatever else is on PATH (e.g. an old
+    # Game Porting Toolkit wine64, too old for current Steam).
+    bundled = installed_wine()
+    if bundled:
+        return str(bundled)
+    for c in ("wine64", "wine"):
         found = shutil.which(c)
         if found:
             return found
-    raise BottleError("Wine not found; install it or set OPENBOTTLE_WINE / --wine")
+    raise BottleError("Wine not found; run install.sh, or set CROSSBOTTLE_WINE / --wine")
+
+
+def installed_wine() -> Optional[Path]:
+    """Newest Wine that install.sh put in <data dir>/Wine/*.app."""
+    found = sorted((paths.data_dir() / "Wine").glob("*.app/Contents/Resources/wine/bin/wine"))
+    return found[-1] if found else None
 
 
 def build_env(bottle: Bottle, base: Optional[Dict[str, str]] = None) -> Dict[str, str]:
@@ -39,8 +52,8 @@ def build_env(bottle: Bottle, base: Optional[Dict[str, str]] = None) -> Dict[str
     if platform.system() == "Darwin" and platform.machine() == "arm64":
         # Lets x86_64 Wine under Rosetta advertise AVX to guests.
         env.setdefault("ROSETTA_ADVERTISE_AVX", "1")
-    env["OPENBOTTLE_BOTTLE"] = bottle.name
-    env["OPENBOTTLE_UUID"] = bottle.meta.uuid
+    env["CROSSBOTTLE_BOTTLE"] = bottle.name
+    env["CROSSBOTTLE_UUID"] = bottle.meta.uuid
     for key, value in (bottle.meta.env or {}).items():
         env[str(key)] = str(value)
     return env

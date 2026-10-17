@@ -10,7 +10,8 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import List, Optional
 
-DEFAULT_ROOT = Path.home() / "Library" / "Application Support" / "OpenBottle" / "Bottles"
+from . import paths
+
 META_NAME = "bottle.json"
 PREFIX_DIR = "prefix"
 SCHEMA_VERSION = 1
@@ -67,8 +68,7 @@ class Store:
     """A directory containing bottles."""
 
     def __init__(self, root: Optional[Path] = None):
-        env = os.environ.get("OPENBOTTLE_ROOT")
-        self.root = Path(root or env or DEFAULT_ROOT)
+        self.root = Path(root or paths.env("ROOT") or paths.data_dir() / "Bottles")
 
     def _path(self, name: str) -> Path:
         if not NAME_RE.match(name) or ".." in name:
