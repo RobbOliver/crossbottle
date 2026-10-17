@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from openbottle import archive, cefwrap, graphics, launcher  # noqa: E402
+from openbottle import archive, cefwrap, graphics, icons, launcher, shortcut  # noqa: E402
 from openbottle.bottle import BottleError, Store  # noqa: E402
 from openbottle.cli import main  # noqa: E402
 
@@ -255,6 +255,83 @@ class GraphicsTests(Base):
             graphics.apply(self.store.create("empty"), "dxvk", self.rt)
         with self.assertRaises(BottleError):
             graphics.apply(self.bottle, "metal")
+
+
+class ShortcutTests(Base):
+    def _fake_wine_root(self):
+        root = self.tmp / "wine"
+        unix = root / "lib" / "wine" / "x86_64-unix"
+        (unix / "vulkan" / "icd.d").mkdir(parents=True)
+        (root / "lib" / "wine" / "x86_64-windows").mkdir()
+        (root / "bin").mkdir()
+        (root / "share" / "wine").mkdir(parents=True)
+        for name in ("wine", "ntdll.so", "win32u.so"):
+            (unix / name).write_bytes(b"x")
+        (unix / "wine").chmod(0o755)
+        (root / "bin" / "wine").write_text("#!/bin/sh\n")
+        (root / "bin" / "wine").chmod(0o755)
+        (root / "lib" / "libMoltenVK.dylib").write_bytes(b"x")
+        (unix / "vulkan" / "icd.d" / "MoltenVK_icd.json").write_text(
+            '{"ICD": {"library_path": "../../../../libMoltenVK.dylib"}}')
+        return root
+
+    def test_windows_to_unix(self):
+        b = self.store.create("w")
+        p = shortcut.windows_to_unix(b, r"C:\Program Files\App\App.exe")
+        self.assertTrue(str(p).endswith("Program Files/App/App.exe"))
+        self.assertIsNone(shortcut.windows_to_unix(b, "relative.exe"))
+
+    def test_create_bundle_layout(self):
+        root = self._fake_wine_root()
+        b = self.store.create("w")
+        b.meta.wine = str(root / "bin" / "wine")
+        b.save()
+        old = shortcut.LSREGISTER
+        shortcut.LSREGISTER = str(self.tmp / "no-lsregister")
+        try:
+            app = shortcut.create(self.store, b, r"C:\App\App.exe", "My App", self.tmp / "apps")
+            with self.assertRaises(BottleError):
+                shortcut.create(self.store, b, r"C:\App\App.exe", "My App", self.tmp / "apps")
+            shortcut.create(self.store, b, r"C:\App\App.exe", "My App", self.tmp / "apps", replace=True)
+        finally:
+            shortcut.LSREGISTER = old
+        import plistlib
+        inner = app / "Contents" / "Resources" / "My App.app"
+        macos = inner / "Contents" / "MacOS"
+        outer_info = plistlib.loads((app / "Contents" / "Info.plist").read_bytes())
+        inner_info = plistlib.loads((inner / "Contents" / "Info.plist").read_bytes())
+        self.assertEqual(outer_info["CFBundleExecutable"], shortcut.LAUNCHER)
+        self.assertEqual(inner_info["CFBundleExecutable"], "wine")
+        self.assertEqual(inner_info["CFBundleDisplayName"], "My App")
+        unix = root / "lib" / "wine" / "x86_64-unix"
+        self.assertEqual((macos / "ntdll.so").stat().st_ino, (unix / "ntdll.so").stat().st_ino)
+        self.assertFalse((macos / "ntdll.so").is_symlink())
+        self.assertTrue((macos / "x86_64-windows").is_symlink())
+        self.assertTrue((macos / "libMoltenVK.dylib").is_symlink())
+        self.assertEqual(os.readlink(macos / "x86_64-unix"), ".")
+        self.assertTrue((inner / "bin").is_symlink() and (inner / "share").is_symlink())
+        import json
+        icd = json.loads((macos / "vulkan" / "icd.d" / "MoltenVK_icd.json").read_text())
+        self.assertEqual(icd["ICD"]["library_path"], os.path.normpath(str(root.resolve() / "lib" / "libMoltenVK.dylib")))
+        script = (app / "Contents" / "MacOS" / shortcut.LAUNCHER).read_text()
+        self.assertIn("VK_ICD_FILENAMES", script)
+        self.assertIn("run --exec", script)
+        self.assertTrue((app / "Contents" / "Resources" / "python" / "openbottle" / "cli.py").is_file())
+
+    def test_refuses_foreign_app(self):
+        root = self._fake_wine_root()
+        b = self.store.create("w")
+        b.meta.wine = str(root / "bin" / "wine")
+        (self.tmp / "apps" / "Other.app").mkdir(parents=True)
+        with self.assertRaises(BottleError):
+            shortcut.create(self.store, b, "C:\\x.exe", "Other", self.tmp / "apps", replace=True)
+
+    def test_icon_extraction_without_icon(self):
+        self.assertIsNone(icons.extract_ico(cefwrap.WRAPPER))
+        with self.assertRaises(icons.IconError):
+            notpe = self.tmp / "x.exe"
+            notpe.write_bytes(b"hello")
+            icons.extract_ico(notpe)
 
 
 class CliTests(Base):

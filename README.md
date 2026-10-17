@@ -37,6 +37,10 @@ openbottle args Steam Steam.exe -noverifyfiles -no-cef-sandbox
 openbottle cefwrap Steam
 openbottle graphics Steam dxvk
 openbottle run Steam 'C:\Program Files (x86)\Steam\Steam.exe'
+
+# 4. Optional: a real Mac app, so the Dock shows "Steam" (not "wine")
+openbottle shortcut Steam 'C:\Program Files (x86)\Steam\Steam.exe' --app-name Steam
+open ~/Applications/OpenBottle/Steam.app
 ```
 
 These downloads are unsigned third-party builds; macOS may ask you to allow them on first run.
@@ -93,6 +97,25 @@ python3 -m openbottle run Steam 'C:\Program Files (x86)\Steam\Steam.exe'
 ```
 
 Rebuild the wrapper: `x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s -o src/openbottle/data/cefwrap.exe tools/cefwrap/cefwrap.c`
+
+## App shortcuts (Dock name and icon)
+
+Without a shortcut, every Windows program shows up in the Dock and menu bar as **wine**.
+
+```bash
+openbottle shortcut Games 'C:\Games\Game.exe' --app-name "My Game"   # -> ~/Applications/OpenBottle/My Game.app
+openbottle shortcut --replace Games 'C:\Games\Game.exe' --app-name "My Game"   # rebuild (e.g. after a Wine update)
+```
+
+macOS names a process after the bundle whose *main executable* it runs. The shortcut holds an inner
+bundle whose main executable is a hard link of Wine's unix loader, next to hard links of Wine's unix
+libraries (Wine derives all its paths from the real location of `ntdll.so`). Wine and every process it
+starts then run as that app: own name in the Dock and menu bar, icon extracted from the `.exe`.
+It costs ~5 MB per app (hard links, plus a copy of openbottle, since apps opened from Finder cannot
+read `~/Documents`). Launcher output goes to `~/Library/Logs/OpenBottle/<app>.log`.
+
+Known limits: programs started by the app (e.g. games launched from Steam) also show its name;
+each Wine process with windows gets its own Dock icon; rebuild shortcuts after changing Wine.
 
 ## Direct3D 10/11 backend
 

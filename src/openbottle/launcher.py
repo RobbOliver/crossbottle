@@ -75,9 +75,14 @@ def initialize_prefix(bottle: Bottle, wine: str) -> None:
 
 def run(bottle: Bottle, program: str, args: Optional[List[str]] = None,
         wine: Optional[str] = None, workdir: Optional[str] = None,
-        wait: bool = True) -> int:
+        wait: bool = True, replace_process: bool = False) -> int:
     wine_bin = find_wine(wine, bottle)
     initialize_prefix(bottle, wine_bin)
     cmd = build_command(wine_bin, program, default_args(bottle, program) + list(args or []), workdir)
+    if replace_process:
+        # Used by .app shortcuts: Wine becomes the bundle's main process.
+        if workdir:
+            os.chdir(workdir)
+        os.execve(cmd[0], cmd, build_env(bottle))
     proc = subprocess.Popen(cmd, env=build_env(bottle), cwd=workdir or None)
     return proc.wait() if wait else 0

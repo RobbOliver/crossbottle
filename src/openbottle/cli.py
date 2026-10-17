@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from . import archive, cefwrap, graphics, launcher
+from . import archive, cefwrap, graphics, launcher, shortcut
 from .bottle import BottleError, Store, WINDOWS_VERSIONS
 
 
@@ -73,6 +73,14 @@ def build_parser() -> argparse.ArgumentParser:
     gx.add_argument("backend", nargs="?", choices=graphics.BACKENDS)
     gx.add_argument("--runtime", help="DXVK runtime directory (with x64/ and x32/)")
 
+    sc = sub.add_parser("shortcut", help="create a macOS .app for a program (own Dock name and icon)")
+    sc.add_argument("name")
+    sc.add_argument("program", help="program to run, e.g. 'C:\\Program Files\\App\\App.exe'")
+    sc.add_argument("--app-name", required=True, help="name shown in the Dock and Finder")
+    sc.add_argument("--dest", help="folder for the .app (default: ~/Applications/OpenBottle)")
+    sc.add_argument("--wine", help="Wine to embed (default: the bottle's)")
+    sc.add_argument("--replace", action="store_true", help="rebuild an existing openbottle .app")
+
     r = sub.add_parser("run", help="run a Windows program in a bottle")
     r.add_argument("name")
     r.add_argument("program")
@@ -80,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--wine")
     r.add_argument("--workdir")
     r.add_argument("--dry-run", action="store_true", help="print the command and environment, do not run")
+    r.add_argument("--exec", dest="exec_", action="store_true", help="replace this process with Wine")
     return p
 
 
@@ -150,6 +159,11 @@ def _dispatch(args, store: Store) -> int:
         if bottle.meta.graphics_runtime:
             print("runtime: %s" % bottle.meta.graphics_runtime)
         print("dll_overrides: %s" % (bottle.meta.dll_overrides or "(none)"))
+    elif args.cmd == "shortcut":
+        bottle = store.get(args.name)
+        app = shortcut.create(store, bottle, args.program, args.app_name,
+                              Path(args.dest).expanduser() if args.dest else None, args.wine, args.replace)
+        print(app)
     elif args.cmd == "run":
         bottle = store.get(args.name)
         if bottle.meta.cefwrap and not args.dry_run:
@@ -167,7 +181,8 @@ def _dispatch(args, store: Store) -> int:
             for k in sorted(env):
                 print("%s=%s" % (k, env[k]))
             return 0
-        return launcher.run(bottle, args.program, args.args, args.wine, args.workdir)
+        return launcher.run(bottle, args.program, args.args, args.wine, args.workdir,
+                            replace_process=args.exec_)
     return 0
 
 
