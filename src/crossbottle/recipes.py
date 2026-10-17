@@ -13,9 +13,9 @@ from .bottle import BottleError, Store
 STEAM_INSTALLER_URL = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
 STEAM_EXE = r"C:\Program Files (x86)\Steam\Steam.exe"
 STEAM_ARGS = ["-noverifyfiles", "-no-cef-sandbox"]
-# Optional: Steam's web UI drawn by the GPU through ANGLE on Vulkan (MoltenVK -> Metal).
-# It renders on Wine 11.18 (ANGLE's D3D11 and GL backends do not), but a speed gain over
-# the software default is not measured yet, so install-steam keeps software rendering.
+# GPU paths for Steam's web UI, tested on Wine 11.18 (M1): ANGLE D3D11 fails (EGL_BAD_ALLOC),
+# ANGLE GL loops on context errors, ANGLE Vulkan leaves the store area black for minutes.
+# install-steam therefore keeps the wrapper's software rendering; this is for experiments.
 STEAM_CEF_GPU_FLAGS = "--no-sandbox --single-process --use-angle=vulkan"
 
 

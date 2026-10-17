@@ -79,10 +79,9 @@ file, `crossbottle run` re-applies the wrapper. The switches can be changed per 
 `crossbottle config Steam --env CROSSBOTTLE_CEF_FLAGS="..."`. GPU rendering (`--no-sandbox` only) was
 tested on Wine 11.18 with DXVK and does not work: ANGLE fails with `SwapChain11 ... EGL_BAD_ALLOC` and
 the web helper crashes; ANGLE on OpenGL loops on "Failed to create GLES3 context" at ~150% CPU.
-ANGLE on **Vulkan** does render through MoltenVK (Metal swapchains at window size, no crashes):
-`crossbottle config Steam --env "CROSSBOTTLE_CEF_FLAGS=--no-sandbox --single-process --use-angle=vulkan"`.
-Whether it is faster than the software default is not measured yet, so software stays the default;
-`crossbottle config Steam --unset-env CROSSBOTTLE_CEF_FLAGS` goes back. Idea credit:
+ANGLE on **Vulkan** starts and draws through MoltenVK, but the store's content area stays black for
+minutes (in an A/B test on an M1 it was still black 75 s after the page had loaded, while software mode
+showed it). Software rendering stays the default and is the recommended setting. Idea credit:
 [steam-on-m1-wine](https://github.com/notpop/steam-on-m1-wine).
 
 **Direct3D.** Wine's built-in D3D reports a fake "GeForce 6800" at feature level 9_3 on macOS.
@@ -112,8 +111,9 @@ kernel anti-cheat (Valorant, many online shooters), do not work. Results vary by
 Steam, then Steam → Settings → Storage → Add Drive → `E:`. The command also marks the drive as a fixed
 disk in Wine; without that, Steam reports the library as "not mounted" and Add Drive does nothing.
 
-**Steam's interface is slow.** It is drawn by the CPU (see above; GPU via Vulkan is an opt-in
-experiment) and runs through Rosetta. A running game download also slows the store a lot. In Steam,
+**Steam's interface is slow.** It is drawn by the CPU (GPU paths were tested; see above) and runs
+through Rosetta. The store page alone keeps the UI near 100% of one core (animated capsules, trailers);
+starting Steam in the Library and turning off store video autoplay helps. A running game download also slows the store a lot. In Steam,
 turn on Settings → Library → *Low Performance Mode*, turn off Settings → Interface → *Smooth scrolling*,
 or use View → *Small Mode*. Close other heavy apps on 8 GB Macs. Games are not affected: they use the GPU.
 
