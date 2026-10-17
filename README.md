@@ -78,7 +78,11 @@ with `--disable-gpu --disable-gpu-compositing --single-process`. If a Steam upda
 file, `crossbottle run` re-applies the wrapper. The switches can be changed per bottle with
 `crossbottle config Steam --env CROSSBOTTLE_CEF_FLAGS="..."`. GPU rendering (`--no-sandbox` only) was
 tested on Wine 11.18 with DXVK and does not work: ANGLE fails with `SwapChain11 ... EGL_BAD_ALLOC` and
-the web helper crashes, so software rendering stays the default. Idea credit:
+the web helper crashes. ANGLE on **Vulkan** works: `crossbottle install-steam` sets
+`CROSSBOTTLE_CEF_FLAGS="--no-sandbox --single-process --use-angle=vulkan"`, and the UI is drawn by the GPU
+through MoltenVK (on an M1 the store showed up after ~20 s instead of more than 4 minutes, and the idle UI
+uses 0.2% CPU instead of ~8%). If the window goes black on your Mac, fall back to software rendering with
+`crossbottle config Steam --unset-env CROSSBOTTLE_CEF_FLAGS`. Idea credit:
 [steam-on-m1-wine](https://github.com/notpop/steam-on-m1-wine).
 
 **Direct3D.** Wine's built-in D3D reports a fake "GeForce 6800" at feature level 9_3 on macOS.
@@ -108,7 +112,9 @@ kernel anti-cheat (Valorant, many online shooters), do not work. Results vary by
 Steam, then Steam → Settings → Storage → Add Drive → `E:`. The command also marks the drive as a fixed
 disk in Wine; without that, Steam reports the library as "not mounted" and Add Drive does nothing.
 
-**Steam's interface is slow.** It is drawn by the CPU (see above) and runs through Rosetta. In Steam,
+**Steam's interface is slow.** Bottles created by an older CrossBottle draw it with the CPU; switch to the
+GPU with `crossbottle config Steam --env "CROSSBOTTLE_CEF_FLAGS=--no-sandbox --single-process --use-angle=vulkan"`
+and reopen Steam. Steam also runs through Rosetta. In Steam,
 turn on Settings → Library → *Low Performance Mode*, turn off Settings → Interface → *Smooth scrolling*,
 or use View → *Small Mode*. Close other heavy apps on 8 GB Macs. Games are not affected: they use the GPU.
 
