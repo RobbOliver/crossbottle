@@ -203,6 +203,10 @@ def create(store: Store, bottle: Bottle, program: str, name: str,
             "CFBundleVersion": "1",
             "LSMinimumSystemVersion": "11.0",
             "NSHighResolutionCapable": True,
+            # Like Wine's own Info.plist: start as a background element. Wine turns a
+            # process into a regular app (Dock icon) only when it shows a window, so
+            # helper processes (explorer.exe, start.exe, Steam.exe) get no icon.
+            "LSUIElement": True,
         }
         if has_icon:
             base["CFBundleIconFile"] = "app"

@@ -304,6 +304,7 @@ class ShortcutTests(Base):
         self.assertEqual(outer_info["CFBundleExecutable"], shortcut.LAUNCHER)
         self.assertEqual(inner_info["CFBundleExecutable"], "wine")
         self.assertEqual(inner_info["CFBundleDisplayName"], "My App")
+        self.assertTrue(inner_info["LSUIElement"] and outer_info["LSUIElement"])
         unix = root / "lib" / "wine" / "x86_64-unix"
         self.assertEqual((macos / "ntdll.so").stat().st_ino, (unix / "ntdll.so").stat().st_ino)
         self.assertFalse((macos / "ntdll.so").is_symlink())

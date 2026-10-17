@@ -86,7 +86,9 @@ used by CrossOver) needs a Wine whose `winemac.so` exports `macdrv_*` symbols, w
 loader has an embedded Info.plist saying "Wine". A CrossBottle app contains an inner bundle whose main
 executable is a hard link of Wine's unix loader, next to hard links of its libraries (Wine computes
 every path from the real location of `ntdll.so`). Wine and every process it starts then run as that
-app. Vulkan ICD manifests are rewritten with absolute paths so MoltenVK still loads. ~5 MB per app.
+app. Both bundles are marked `LSUIElement` (as Wine's own Info.plist is), so only processes that show a
+window get a Dock icon: one Steam icon, not one per helper process. Vulkan ICD manifests are rewritten
+with absolute paths so MoltenVK still loads. ~5 MB per app.
 
 ## FAQ
 
