@@ -13,9 +13,9 @@ from .bottle import BottleError, Store
 STEAM_INSTALLER_URL = "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe"
 STEAM_EXE = r"C:\Program Files (x86)\Steam\Steam.exe"
 STEAM_ARGS = ["-noverifyfiles", "-no-cef-sandbox"]
-# Steam's web UI drawn by the GPU: ANGLE on Vulkan (MoltenVK -> Metal). ANGLE's default
-# D3D11 path fails on Wine for macOS; software rendering is the wrapper's fallback.
-# Measured on an M1: store visible after ~20 s instead of >4 min, idle UI CPU 0.2% vs ~8%.
+# Optional: Steam's web UI drawn by the GPU through ANGLE on Vulkan (MoltenVK -> Metal).
+# It renders on Wine 11.18 (ANGLE's D3D11 and GL backends do not), but a speed gain over
+# the software default is not measured yet, so install-steam keeps software rendering.
 STEAM_CEF_GPU_FLAGS = "--no-sandbox --single-process --use-angle=vulkan"
 
 
@@ -106,13 +106,6 @@ def install_steam(store: Store, name: str = "Steam", installer: Optional[Path] =
     table[launcher.program_key(STEAM_EXE)] = list(STEAM_ARGS)
     bottle.meta.program_args = table
     bottle.save()
-
-    env = dict(bottle.meta.env or {})
-    env.setdefault("CROSSBOTTLE_CEF_FLAGS", STEAM_CEF_GPU_FLAGS)
-    bottle.meta.env = env
-    bottle.save()
-    say("Steam interface: GPU (Vulkan); software fallback: "
-        "crossbottle config %s --unset-env CROSSBOTTLE_CEF_FLAGS" % name)
 
     for helper, what in cefwrap.apply(bottle):
         say("Steam web helper: %s" % what)

@@ -84,11 +84,10 @@ com anti-cheat de kernel (Valorant e vários jogos online competitivos) não fun
 reinicie a Steam e vá em Configurações → Armazenamento → Adicionar unidade → `E:`. O comando também
 marca a unidade como disco fixo no Wine; sem isso a Steam diz que a biblioteca "não está montada".
 
-**A interface da Steam está lenta.** O `install-steam` já faz a interface usar a GPU (via Vulkan). Em
-garrafas criadas por uma versão antiga, rode
-`crossbottle config Steam --env "CROSSBOTTLE_CEF_FLAGS=--no-sandbox --single-process --use-angle=vulkan"`
-e reabra a Steam. Se a janela ficar preta, volte ao modo antigo com
-`crossbottle config Steam --unset-env CROSSBOTTLE_CEF_FLAGS`. A Steam também roda pelo Rosetta. Na Steam, ative Configurações → Biblioteca → *Modo de baixo
+**A interface da Steam está lenta.** Ela é desenhada pelo processador. Dá para testar a GPU (via
+Vulkan) com `crossbottle config Steam --env "CROSSBOTTLE_CEF_FLAGS=--no-sandbox --single-process --use-angle=vulkan"`
+e voltar com `crossbottle config Steam --unset-env CROSSBOTTLE_CEF_FLAGS`; o ganho ainda não foi medido.
+Um download de jogo em andamento também deixa a loja bem mais lenta. A Steam também roda pelo Rosetta. Na Steam, ative Configurações → Biblioteca → *Modo de baixo
 desempenho*, desative Configurações → Interface → *Rolagem suave*, ou use Exibir → *Modo compacto*. Em Macs
 com 8 GB, feche outros apps pesados. Os jogos não são afetados: eles usam a GPU.
 
