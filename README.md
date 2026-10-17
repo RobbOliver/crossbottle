@@ -44,6 +44,28 @@ crossbottle shortcut MyApp 'C:\Program Files\MyApp\MyApp.exe' --app-name "MyApp"
 open ~/Applications/CrossBottle/MyApp.app
 ```
 
+## Recommended upgrade: CrossOver's open-source Wine + DXMT
+
+CodeWeavers publishes the Wine used by CrossOver under the LGPL. Built from those sources, Wine's mac
+driver exports `macdrv_functions`, so [DXMT](https://github.com/3Shain/dxmt) (Direct3D 10/11 → Metal,
+what CrossOver uses) works, and its mac-driver patches make Steam's interface far lighter:
+
+| Steam web UI (software rendering), M1 8 GB | Gcenx Wine 11.18 | CrossOver Wine 26.3 (open source) |
+|---|---|---|
+| web helper CPU with the store open | ~90–100% | ~25% |
+
+```bash
+tools/build-crossover-wine.sh        # ~1 hour: downloads sources, builds Wine x86_64, adds DXMT
+crossbottle config Steam --wine "$HOME/Library/Application Support/CrossBottle/Wine/CrossOver-Wine-26.3/bin/wine"
+crossbottle graphics Steam dxmt      # Direct3D 10/11 games on Metal
+crossbottle shortcut --replace Steam 'C:\Program Files (x86)\Steam\Steam.exe' --app-name Steam
+```
+
+After switching Wine, Steam may ask to reinstall its service ("Steam Service Error"): click
+*Install service*; it is installed inside the bottle. GPU rendering of Steam's UI through DXMT also works
+on this Wine (`CROSSBOTTLE_CEF_FLAGS="--no-sandbox --single-process"`), but it used more CPU and memory
+than software rendering in our test, so software stays the default.
+
 ## Commands
 
 | Command | What it does |
@@ -53,7 +75,7 @@ open ~/Applications/CrossBottle/MyApp.app
 | `crossbottle list` / `info NAME` | Show bottles |
 | `crossbottle run NAME PROGRAM [ARGS...]` | Run a `.exe`, `.msi` or `.bat` (`--dry-run` prints the command) |
 | `crossbottle shortcut NAME PROGRAM --app-name "Name"` | Mac app with its own Dock name and icon (`--replace` to rebuild) |
-| `crossbottle graphics NAME [dxvk\|wined3d]` | Direct3D 10/11 backend |
+| `crossbottle graphics NAME [dxmt\|dxvk\|wined3d]` | Direct3D 10/11 backend (`dxmt` needs the CrossOver-source Wine) |
 | `crossbottle drive NAME E: /Volumes/Disk` | Map a drive letter to a Mac folder or external disk (`--remove`) |
 | `crossbottle config NAME --wine PATH --env K=V --dll-overrides S` | Per-bottle settings |
 | `crossbottle args NAME PROGRAM [FLAGS...]` | Default flags for a program |

@@ -281,6 +281,36 @@ class GraphicsTests(Base):
         self.assertEqual(self.bottle.meta.dll_overrides, "dcomp=d")
         self.assertEqual(self.store.get("g").meta.graphics, "wined3d")
 
+    def _wine(self, with_dxmt):
+        root = self.tmp / ("wine-dxmt" if with_dxmt else "wine-plain")
+        for d in ("bin", "lib/wine/x86_64-unix", "lib/wine/x86_64-windows", "lib/wine/i386-windows"):
+            (root / d).mkdir(parents=True, exist_ok=True)
+        (root / "bin" / "wine").write_text("#!/bin/sh\n")
+        (root / "bin" / "wine").chmod(0o755)
+        (root / "lib/wine/x86_64-unix/wine").write_bytes(b"x")
+        if with_dxmt:
+            (root / "lib/wine/x86_64-unix/winemetal.so").write_bytes(b"so")
+            for arch in ("x86_64-windows", "i386-windows"):
+                (root / "lib/wine" / arch / "winemetal.dll").write_bytes(arch.encode())
+                (root / "lib/wine" / arch / "d3d11.dll").write_bytes(b"dxmt")
+        return root
+
+    def test_dxmt_from_dxvk(self):
+        graphics.apply(self.bottle, "dxvk", self.rt)
+        self.bottle.meta.wine = str(self._wine(True) / "bin" / "wine")
+        log = graphics.apply(self.bottle, "dxmt")
+        self.assertEqual((self.win / "system32" / "d3d11.dll").read_bytes(), b"wine-system32")
+        self.assertEqual((self.win / "system32" / "winemetal.dll").read_bytes(), b"x86_64-windows")
+        self.assertEqual((self.win / "syswow64" / "winemetal.dll").read_bytes(), b"i386-windows")
+        self.assertEqual(self.bottle.meta.dll_overrides, "")
+        self.assertEqual(self.store.get("g").meta.graphics, "dxmt")
+        self.assertTrue(any("winemetal" in line for line in log))
+
+    def test_dxmt_needs_a_dxmt_wine(self):
+        self.bottle.meta.wine = str(self._wine(False) / "bin" / "wine")
+        with self.assertRaises(BottleError):
+            graphics.apply(self.bottle, "dxmt")
+
     def test_errors(self):
         with self.assertRaises(BottleError):
             graphics.apply(self.bottle, "dxvk", self.tmp / "missing")

@@ -49,6 +49,23 @@ pode arrastar o app para o Dock. Os jogos que você instalar na Steam ficam dent
 **Apareceu `crossbottle: command not found`?** Copie e rode a linha `echo 'export PATH=...'` que o
 `install.sh` mostrou no final, feche o Terminal e abra de novo.
 
+## Melhoria recomendada: o Wine aberto do CrossOver + DXMT
+
+A CodeWeavers publica o Wine do CrossOver em código aberto (LGPL). Compilado a partir dele, o Wine
+aceita o [DXMT](https://github.com/3Shain/dxmt) (DirectX 10/11 → Metal, o mesmo que o CrossOver usa) e
+deixa a interface da Steam muito mais leve: em um M1 com 8 GB, o navegador da Steam caiu de ~90–100% de
+processador para ~25%.
+
+```bash
+tools/build-crossover-wine.sh        # ~1 hora: baixa o código, compila o Wine e adiciona o DXMT
+crossbottle config Steam --wine "$HOME/Library/Application Support/CrossBottle/Wine/CrossOver-Wine-26.3/bin/wine"
+crossbottle graphics Steam dxmt      # jogos DirectX 10/11 via Metal
+crossbottle shortcut --replace Steam 'C:\Program Files (x86)\Steam\Steam.exe' --app-name Steam
+```
+
+Depois de trocar o Wine, a Steam pode pedir para reinstalar o serviço ("Steam Service Error"): clique
+em *Install service*; ele é instalado dentro da garrafa.
+
 ## Outros programas de Windows
 
 ```bash

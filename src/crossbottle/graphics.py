@@ -2,6 +2,9 @@
 
 wined3d  Wine's built-in D3D over OpenGL (default; limited to feature level 9_3 on macOS)
 dxvk     DXVK-macOS over MoltenVK/Vulkan: native d3d11/d3d10core/dxgi DLLs in the prefix
+dxmt     DXMT (Direct3D 10/11 -> Metal) installed as builtin DLLs in the bottle's Wine, as
+         CrossOver does. Needs a Wine whose winemac.so exports `macdrv_functions` (e.g. built
+         from CrossOver's open-source Wine with tools/build-crossover-wine.sh).
 """
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ from typing import Dict, List, Optional
 from . import paths
 from .bottle import Bottle, BottleError
 
-BACKENDS = ("wined3d", "dxvk")
+BACKENDS = ("wined3d", "dxvk", "dxmt")
 DXVK_DLLS = ("d3d11", "d3d10core", "dxgi")
 DEFAULT_DXVK = "dxvk-macos-1.10.3"
 BACKUP_DIR = "crossbottle-backup"
@@ -50,6 +53,20 @@ def _windows_dir(bottle: Bottle) -> Path:
 def _backup_dir(bottle: Bottle) -> Path:
     legacy = bottle.path / LEGACY_BACKUP_DIR / "graphics"
     return legacy if legacy.is_dir() else bottle.path / BACKUP_DIR / "graphics"
+
+
+def dxmt_wine_root(bottle: Bottle) -> Path:
+    """Root of the bottle's Wine if it carries DXMT builtin DLLs, else BottleError."""
+    from . import launcher, shortcut  # avoid an import cycle
+    root = shortcut.wine_root(launcher.find_wine(None, bottle))
+    needed = [root / "lib/wine/x86_64-unix/winemetal.so",
+              root / "lib/wine/x86_64-windows/winemetal.dll",
+              root / "lib/wine/x86_64-windows/d3d11.dll"]
+    missing = [str(p) for p in needed if not p.is_file()]
+    if missing:
+        raise BottleError("this bottle's Wine has no DXMT (missing %s); build one with "
+                          "tools/build-crossover-wine.sh" % ", ".join(missing))
+    return root
 
 
 def current(bottle: Bottle) -> str:
@@ -89,6 +106,7 @@ def apply(bottle: Bottle, backend: str, runtime: Optional[Path] = None) -> List[
             overrides[name] = "n,b"
         bottle.meta.graphics_runtime = str(runtime)
     else:
+        wine_root = dxmt_wine_root(bottle) if backend == "dxmt" else None
         for _, sysdir in ARCH_DIRS:
             for name in DXVK_DLLS:
                 saved = backup / sysdir / (name + ".dll")
@@ -98,6 +116,15 @@ def apply(bottle: Bottle, backend: str, runtime: Optional[Path] = None) -> List[
         for name in DXVK_DLLS:
             overrides.pop(name, None)
         bottle.meta.graphics_runtime = ""
+        if wine_root is not None:
+            # Builtin d3d11/dxgi now come from the Wine (DXMT); winemetal.dll must also be
+            # present in the prefix, as DXMT's installation guide says.
+            for winarch, sysdir in (("x86_64-windows", "system32"), ("i386-windows", "syswow64")):
+                src = wine_root / "lib" / "wine" / winarch / "winemetal.dll"
+                if src.is_file() and (windows / sysdir).is_dir():
+                    shutil.copy2(src, windows / sysdir / "winemetal.dll")
+                    log.append("%s/winemetal.dll <- %s" % (sysdir, src))
+            bottle.meta.graphics_runtime = str(wine_root)
 
     bottle.meta.dll_overrides = format_overrides(overrides)
     bottle.meta.graphics = backend
